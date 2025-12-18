@@ -101,65 +101,84 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Visualization functions
     async function createVisualization(sequence) {
-        diskArea.innerHTML = '';
-        const canvas = document.createElement('canvas');
-        canvas.width = diskArea.clientWidth;
-        canvas.height = 300;
-        diskArea.appendChild(canvas);
-        const ctx = canvas.getContext('2d');
+    diskArea.innerHTML = '';
+    const canvas = document.createElement('canvas');
+    canvas.width = diskArea.clientWidth;
+    canvas.height = 300;
+    diskArea.appendChild(canvas);
 
-        // Scale factors
-        const xScale = (canvas.width - 60) / DISK_SIZE;
-        const yScale = (canvas.height - 60) / sequence.length;
+    const ctx = canvas.getContext('2d');
 
-        // Draw axes
-        ctx.beginPath();
-        ctx.strokeStyle = '#000';
-        ctx.moveTo(30, 30);
-        ctx.lineTo(30, canvas.height - 30);
-        ctx.lineTo(canvas.width - 30, canvas.height - 30);
-        ctx.stroke();
+    // Scale factors
+    const xScale = (canvas.width - 60) / DISK_SIZE;
+    const yScale = (canvas.height - 60) / sequence.length;
 
-        // Draw points and lines with animation
+    // Draw axes
+    ctx.beginPath();
+    ctx.strokeStyle = '#000';
+    ctx.moveTo(30, 30);
+    ctx.lineTo(30, canvas.height - 30);
+    ctx.lineTo(canvas.width - 30, canvas.height - 30);
+    ctx.stroke();
+
+    // Initialize disk head position
+    diskHead.style.left = `${(sequence[0] / DISK_SIZE) * 100}%`;
+    currentPosition.textContent = sequence[0];
+
+    // Draw seek path step-by-step
+    for (let i = 0; i < sequence.length - 1; i++) {
+
         ctx.beginPath();
         ctx.strokeStyle = '#3498db';
         ctx.lineWidth = 2;
 
-        // Initialize disk head position
-        diskHead.style.left = `${(sequence[0] / DISK_SIZE) * 100}%`;
-        currentPosition.textContent = sequence[0];
-        
-        for (let i = 0; i < sequence.length - 1; i++) {
-            if (i === 0) {
-                ctx.moveTo(30 + sequence[i] * xScale, canvas.height - 30);
-            }
-            
-            // Draw line to next point
-            ctx.lineTo(30 + sequence[i + 1] * xScale, canvas.height - 30 - (i + 1) * yScale);
-            ctx.stroke();
+        ctx.moveTo(
+            30 + sequence[i] * xScale,
+            canvas.height - 30 - i * yScale
+        );
 
-            // Draw point
-            ctx.beginPath();
-            ctx.fillStyle = '#e74c3c';
-            ctx.arc(30 + sequence[i] * xScale, canvas.height - 30 - i * yScale, 4, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Animate disk head
-            await animateDiskHead(sequence[i], sequence[i + 1]);
+        // Detect jump movement (SCAN / C-SCAN / C-LOOK)
+        if (Math.abs(sequence[i] - sequence[i + 1]) > DISK_SIZE / 2) {
+            ctx.setLineDash([6, 6]);   // dashed line for jump
+        } else {
+            ctx.setLineDash([]);      // solid line for normal seek
         }
 
-        // Draw final point
+        ctx.lineTo(
+            30 + sequence[i + 1] * xScale,
+            canvas.height - 30 - (i + 1) * yScale
+        );
+        ctx.stroke();
+        ctx.setLineDash([]); // reset dash
+
+        // Draw point
         ctx.beginPath();
         ctx.fillStyle = '#e74c3c';
-        ctx.arc(30 + sequence[sequence.length - 1] * xScale, 
-                canvas.height - 30 - (sequence.length - 1) * yScale, 
-                4, 0, Math.PI * 2);
+        ctx.arc(
+            30 + sequence[i] * xScale,
+            canvas.height - 30 - i * yScale,
+            4, 0, Math.PI * 2
+        );
         ctx.fill();
 
-        // Clear direction after animation
-        headDirection.textContent = '-';
-        nextRequest.textContent = '-';
+        // Animate disk head
+        await animateDiskHead(sequence[i], sequence[i + 1]);
     }
+
+    // Draw final point
+    ctx.beginPath();
+    ctx.fillStyle = '#e74c3c';
+    ctx.arc(
+        30 + sequence[sequence.length - 1] * xScale,
+        canvas.height - 30 - (sequence.length - 1) * yScale,
+        4, 0, Math.PI * 2
+    );
+    ctx.fill();
+
+    // Reset indicators
+    headDirection.textContent = '-';
+    nextRequest.textContent = '-';
+}
 
     // Disk Scheduling Algorithms
     function FCFS(requests, initial) {
@@ -307,3 +326,4 @@ document.addEventListener('DOMContentLoaded', () => {
         await createVisualization(sequence);
     });
 });
+
